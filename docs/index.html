@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מתכנן מסלולים חכם 🗺️</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f6f2;
+    --surface: #ffffff;
+    --surface2: #f2f1ed;
+    --border: #e2e0d8;
+    --border2: #cccac0;
+    --text: #1a1a18;
+    --text2: #5a5a54;
+    --text3: #9a9990;
+    --accent: #1d4ed8;
+    --accent-light: #eff4ff;
+    --accent-border: #bfcfff;
+    --green: #0d6e4a;
+    --green-light: #edfaf4;
+    --green-border: #9ae0c4;
+    --red: #b91c1c;
+    --red-light: #fef2f2;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    direction: rtl;
+  }
+
+  /* ── Header ── */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 1.5rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .topbar-logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; color: var(--text); }
+  .topbar-logo .icon { font-size: 22px; }
+  .topbar-sub { font-size: 12px; color: var(--text3); font-weight: 400; }
+
+  /* ── Layout ── */
+  .page { max-width: 780px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 1rem;
+  }
+
+  /* ── Inputs ── */
+  input[type=text], select, textarea {
+    width: 100%;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    direction: rtl;
+    transition: border-color 0.15s;
+  }
+  input[type=text]:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(29,78,216,0.08);
+  }
+  input[type=text]::placeholder, textarea::placeholder { color: var(--text3); }
+
+  textarea { min-height: 150px; resize: vertical; line-height: 1.7; }
+
+  .field-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .field-row label { font-size: 13px; color: var(--text2); white-space: nowrap; flex-shrink: 0; }
+  .field-hint { font-size: 12px; color: var(--text3); margin-top: 5px; line-height: 1.5; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; }
+  .tab {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+    margin-bottom: -1px;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Excel drop zone ── */
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .dropzone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .dropzone-icon { font-size: 36px; margin-bottom: 8px; }
+  .dropzone-text { font-size: 14px; color: var(--text2); margin-bottom: 4px; }
+  .dropzone-sub { font-size: 12px; color: var(--text3); }
+
+  .excel-preview {
+    margin-top: 1rem;
+    border: 1px solid var(--green-border);
+    border-radius: var(--radius-sm);
+    background: var(--green-light);
+    padding: 10px 14px;
+  }
+  .excel-preview-title { font-size: 13px; font-weight: 600; color: var(--green); margin-bottom: 6px; }
+  .excel-preview-list { font-size: 13px; color: var(--text2); line-height: 1.8; }
+
+  .col-select-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .col-select-row label { font-size: 13px; color: var(--text2); white-space: nowrap; }
+  .col-select-row select { width: auto; flex: 1; min-width: 120px; }
+
+  /* ── Options grid ── */
+  .options-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+  .opt-check {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 13px; color: var(--text2);
+    cursor: pointer; user-select: none;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 12px;
+    transition: all 0.15s;
+  }
+  .opt-check:hover { border-color: var(--accent); color: var(--accent); }
+  .opt-check input { cursor: pointer; accent-color: var(--accent); }
+
+  /* ── Examples ── */
+  .examples-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 0.75rem; }
+  .ex-btn {
+    font-size: 12px; color: var(--text2);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 12px; cursor: pointer;
+    transition: all 0.15s; font-family: inherit;
+  }
+  .ex-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    background: var(--accent); color: #fff;
+    border: none; border-radius: var(--radius-sm);
+    padding: 10px 22px; font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .btn-primary:hover { background: #1740b0; transform: translateY(-1px); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { background: var(--text3); cursor: not-allowed; transform: none; }
+
+  .btn-sec {
+    background: var(--surface); color: var(--text2);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 9px 16px; font-size: 13px; font-weight: 500;
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-sec:hover { background: var(--surface2); border-color: var(--border2); }
+
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 1.25rem; }
+
+  /* ── Result ── */
+  #result-section { display: none; }
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--green-border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .result-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1rem; padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .result-meta { font-size: 13px; color: var(--text2); display: flex; gap: 14px; align-items: center; }
+  .result-meta span { display: flex; align-items: center; gap: 4px; }
+
+  .stop-list { list-style: none; }
+  .stop-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .stop-item:last-child { border-bottom: none; }
+  .stop-num {
+    min-width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent-light); border: 1px solid var(--accent-border);
+    color: var(--accent); font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+  }
+  .stop-addr { font-size: 14px; color: var(--text); line-height: 1.5; }
+  .stop-extra { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+  .section-block { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  .section-block-title { font-size: 12px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
+  .section-block p { font-size: 14px; color: var(--text2); line-height: 1.7; }
+
+  .bullet-item { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .bullet-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text3); flex-shrink: 0; margin-top: 7px; }
+
+  /* ── Loading ── */
+  .loading-box {
+    display: flex; align-items: center; gap: 14px;
+    padding: 1.5rem; color: var(--text2); font-size: 14px;
+  }
+  .spinner {
+    width: 20px; height: 20px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── History ── */
+  .history-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 0; border-bottom: 1px solid var(--border); cursor: pointer;
+  }
+  .history-item:last-child { border-bottom: none; }
+  .history-item:hover .history-label { color: var(--accent); }
+  .history-label { font-size: 13px; color: var(--text); }
+  .history-meta { font-size: 11px; color: var(--text3); }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 1.5rem; right: 50%; transform: translateX(50%);
+    background: var(--text); color: #fff; border-radius: var(--radius-sm);
+    padding: 10px 20px; font-size: 13px; font-weight: 500;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 99;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ── Waze row ── */
+  .waze-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 0.75rem; }
+
+  /* ── Responsive ── */
+  @media (max-width: 520px) {
+    .page { padding: 1rem 0.75rem 3rem; }
+    .card { padding: 1rem; }
+    .topbar { padding: 0 1rem; }
+    .btn-primary, .btn-sec { font-size: 13px; padding: 9px 14px; }
+  }
+
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+  /* ── Driver / Stops section ── */
+  .driver-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  @media (max-width: 520px) { .driver-grid { grid-template-columns: 1fr; } }
+
+  .input-label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 4px; display: block; }
+
+  .stop-rows { display: flex; flex-direction: column; gap: 8px; }
+  .stop-row {
+    display: grid; grid-template-columns: 1fr 90px 130px 32px;
+    gap: 6px; align-items: center;
+  }
+  @media (max-width: 600px) {
+    .stop-row { grid-template-columns: 1fr 70px; grid-template-rows: auto auto; }
+    .stop-row .stop-notes-cell { grid-column: 1 / -1; }
+    .stop-row .stop-del-cell { grid-row: 1; grid-column: 2; justify-self: end; }
+  }
+  .stop-row input[type=text] { margin: 0; }
+  .stop-row input[type=number] {
+    width: 100%; font-family: inherit; font-size: 14px; color: var(--text);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 9px 10px; direction: rtl;
+    transition: border-color 0.15s;
+  }
+  .stop-row input[type=number]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(29,78,216,0.08); }
+
+  .stop-type-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 600; padding: 3px 9px;
+    border-radius: 20px; white-space: nowrap;
+  }
+  .badge-unload { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .badge-pickup { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+
+  .del-btn {
+    width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text3); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    flex-shrink: 0; transition: all 0.15s; font-family: inherit;
+  }
+  .del-btn:hover { background: var(--red-light); border-color: #fca5a5; color: var(--red); }
+
+  .add-stop-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--accent); background: var(--accent-light);
+    border: 1px dashed var(--accent-border); border-radius: var(--radius-sm);
+    padding: 7px 14px; cursor: pointer; font-family: inherit; transition: all 0.15s;
+    margin-top: 6px;
+  }
+  .add-stop-btn:hover { background: #dbeafe; }
+
+  .stop-header { display: grid; grid-template-columns: 1fr 90px 130px 32px; gap: 6px; margin-bottom: 2px; }
+  .stop-header span { font-size: 11px; color: var(--text3); font-weight: 600; }
+
+  /* Result: driver + stops summary */
+  .driver-summary {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 1rem;
+    font-size: 13px; color: var(--text2); display: flex; flex-wrap: wrap; gap: 16px;
+  }
+  .driver-summary span { display: flex; align-items: center; gap: 5px; }
+
+  .unload-badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;
+    border-radius: 20px; padding: 1px 7px; margin-right: 6px;
+  }
+  .pickup-badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd;
+    border-radius: 20px; padding: 1px 7px; margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-logo">
+    <span class="icon">🗺️</span>
+    <div>
+      <div>מתכנן מסלולים חכם</div>
+      <div class="topbar-sub">אופטימיזציה לוגיסטית בישראל</div>
+    </div>
+  </div>
+  <div style="font-size:12px; color:var(--text3);" id="route-counter"></div>
+</header>
+
+<main class="page">
+
+  <!-- Input Card -->
+  <div class="card">
+    <div class="card-title">פרטי המסלול</div>
+
+    <div class="field-row">
+      <label for="city-in">📍 עיר / אזור:</label>
+      <input type="text" id="city-in" placeholder="למשל: תל אביב, חיפה, ירושלים..." />
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('manual', this)">✏️ הזנה ידנית</button>
+      <button class="tab" onclick="switchTab('excel', this)">📊 ייבוא מאקסל</button>
+    </div>
+
+    <!-- Manual Tab -->
+    <div class="tab-panel active" id="tab-manual">
+      <textarea id="addr-input" placeholder="הזן כתובת אחת בכל שורה:&#10;רחוב הרצל 12&#10;שדרות בן גוריון 45&#10;רחוב דיזנגוף 78&#10;..."></textarea>
+      <p class="field-hint">💡 ניתן להזין עד 20 כתובות. פורמט: שם רחוב + מספר בית.</p>
+
+      <div style="margin-top:0.75rem;">
+        <div class="field-hint" style="margin-bottom:6px;">טען דוגמה:</div>
+        <div class="examples-row">
+          <button class="ex-btn" onclick="loadExample('tlv')">תל אביב</button>
+          <button class="ex-btn" onclick="loadExample('haifa')">חיפה</button>
+          <button class="ex-btn" onclick="loadExample('jerusalem')">ירושלים</button>
+          <button class="ex-btn" onclick="loadExample('beersheba')">באר שבע</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Excel Tab -->
+    <div class="tab-panel" id="tab-excel">
+      <div class="dropzone" id="dropzone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <input type="file" id="file-input" accept=".xlsx,.xls,.csv" onchange="handleFileSelect(event)" />
+        <div class="dropzone-icon">📊</div>
+        <div class="dropzone-text">גרור קובץ אקסל לכאן</div>
+        <div class="dropzone-sub">או לחץ לבחירת קובץ — .xlsx / .xls / .csv</div>
+      </div>
+
+      <div id="excel-preview" style="display:none;"></div>
+
+      <div id="col-picker" style="display:none; margin-top:12px;">
+        <div class="field-hint" style="margin-bottom:6px; font-weight:600;">בחר עמודות לשילוב הכתובת:</div>
+        <div class="col-select-row">
+          <label>שם רחוב:</label>
+          <select id="col-street" onchange="rebuildFromExcel()"></select>
+          <label>מספר בית:</label>
+          <select id="col-num" onchange="rebuildFromExcel()"></select>
+        </div>
+        <div class="col-select-row">
+          <label>עיר (אופציונלי):</label>
+          <select id="col-city" onchange="rebuildFromExcel()"></select>
+        </div>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <a href="#" onclick="downloadTemplate(); return false;" style="font-size:13px; color:var(--accent); text-decoration:none;">
+          ⬇️ הורד תבנית אקסל לדוגמה
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Driver + Stops Card -->
+  <div class="card">
+    <div class="card-title">&#x1F69B; פרטי נהג ועצירות ביניים</div>
+
+    <div class="driver-grid">
+      <div>
+        <label class="input-label" for="driver-name">שם הנהג</label>
+        <input type="text" id="driver-name" placeholder="למשל: דוד כהן" />
+      </div>
+      <div>
+        <label class="input-label" for="driver-phone">טלפון</label>
+        <input type="text" id="driver-phone" placeholder="050-0000000" />
+      </div>
+      <div>
+        <label class="input-label" for="driver-vehicle">רכב / לוחית רישוי</label>
+        <input type="text" id="driver-vehicle" placeholder="למשל: משאית 12-345-67" />
+      </div>
+      <div>
+        <label class="input-label" for="driver-start">כתובת יציאה של הנהג</label>
+        <input type="text" id="driver-start" placeholder="רחוב + מספר + עיר" />
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+      <span style="font-size:13px; font-weight:600; color:var(--text2);">עצירות ביניים לפריקה / איסוף</span>
+      <span style="font-size:11px; color:var(--text3);">מחסן, דלק, מיון — לא יעדי לקוח</span>
+    </div>
+
+    <div class="stop-header">
+      <span>כתובת העצירה</span>
+      <span>משך (דק׳)</span>
+      <span>סוג פעולה</span>
+      <span></span>
+    </div>
+
+    <div class="stop-rows" id="inter-stops"></div>
+
+    <button class="add-stop-btn" onclick="addInterStop()">+ הוסף עצירת ביניים</button>
+
+    <p class="field-hint" style="margin-top:8px;">&#x1F4A1; עצירות הביניים יחושבו לתוך המסלול ויסומנו בצבע שונה בתוצאה.</p>
+  </div>
+
+  <!-- Options Card -->
+  <div class="card">
+    <div class="card-title">הגדרות מסלול</div>
+    <div class="options-grid">
+      <label class="opt-check"><input type="checkbox" id="opt-rush"> ⏰ הימנע משעות עומס</label>
+      <label class="opt-check"><input type="checkbox" id="opt-return"> 🔄 מסלול מעגלי (חזרה לנקודת התחלה)</label>
+      <label class="opt-check"><input type="checkbox" id="opt-notes"> 🛣️ הערות ניווט מפורטות</label>
+      <label class="opt-check"><input type="checkbox" id="opt-morning"> 🌅 שעות בוקר (לפני 8:00)</label>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" id="calc-btn" onclick="optimizeRoute()">
+        ✨ חשב מסלול אופטימלי
+      </button>
+      <button class="btn-sec" onclick="clearAll()">🗑️ נקה הכל</button>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div id="result-section">
+    <div class="result-card" id="result-card">
+      <div id="loading-box" class="loading-box">
+        <div class="spinner"></div>
+        <span>מנתח את הכתובות ומחשב מסלול אופטימלי...</span>
+      </div>
+      <div id="result-output" style="display:none;"></div>
+    </div>
+    <div class="btn-row" id="result-actions" style="display:none;">
+      <button class="btn-sec" onclick="copyResult()">📋 העתק תוצאה</button>
+      <button class="btn-sec" onclick="exportTxt()">💾 שמור כ-TXT</button>
+      <button class="btn-sec" onclick="openWaze()">🔵 פתח ב-Waze</button>
+      <button class="btn-sec" onclick="openGoogleMaps()">🗺️ פתח ב-Google Maps</button>
+      <button class="btn-sec" onclick="newRoute()">➕ מסלול חדש</button>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="card" id="history-card" style="display:none;">
+    <div class="card-title">🕓 מסלולים אחרונים</div>
+    <div id="history-list"></div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ─────────────────────────────────────────────
+   DATA
+───────────────────────────────────────────── */
+const EXAMPLES = {
+  tlv: { city:'תל אביב', addrs:'רחוב יפת 23\nרחוב שינקין 15\nשדרות רוטשילד 45\nרחוב אלנבי 72\nשדרות בן גוריון 18\nרחוב דיזנגוף 100' },
+  haifa: { city:'חיפה', addrs:'שדרות הנשיא 15\nרחוב הרצל 42\nרחוב פייר קניג 8\nשדרות מוריה 55\nרחוב חסן שוקרי 22\nרחוב בת גלים 10' },
+  jerusalem: { city:'ירושלים', addrs:"רחוב יפו 55\nרחוב קינג ג'ורג' 20\nרחוב בן יהודה 12\nשדרות הרצל 45\nרחוב ממילא 8\nרחוב הנביאים 33" },
+  beersheba: { city:'באר שבע', addrs:'שדרות רגר 40\nרחוב הנשיא 15\nרחוב ביאליק 22\nשדרות יצחק נפחא 8\nרחוב הרצל 55\nרחוב קק"ל 18' }
+};
+
+let excelRows = [];
+let excelHeaders = [];
+let lastResultText = '';
+let lastAddresses = [];
+let lastCity = '';
+let routeHistory = JSON.parse(localStorage.getItem('routeHistory') || '[]');
+let totalRoutes = parseInt(localStorage.getItem('totalRoutes') || '0');
+
+renderHistory();
+updateCounter();
+
+/* ─────────────────────────────────────────────
+   TABS
+───────────────────────────────────────────── */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+/* ─────────────────────────────────────────────
+   EXAMPLES
+───────────────────────────────────────────── */
+function loadExample(key) {
+  const ex = EXAMPLES[key];
+  document.getElementById('city-in').value = ex.city;
+  document.getElementById('addr-input').value = ex.addrs;
+  switchTab('manual', document.querySelector('.tab'));
+  document.querySelectorAll('.tab')[0].classList.add('active');
+  document.getElementById('tab-manual').classList.add('active');
+  document.querySelectorAll('.tab')[1].classList.remove('active');
+}
+
+/* ─────────────────────────────────────────────
+   EXCEL IMPORT
+───────────────────────────────────────────── */
+function handleDragOver(e) { e.preventDefault(); document.getElementById('dropzone').classList.add('drag-over'); }
+function handleDragLeave(e) { document.getElementById('dropzone').classList.remove('drag-over'); }
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+      if (rows.length < 2) { showToast('הקובץ ריק או לא תקין'); return; }
+
+      excelHeaders = rows[0].map(h => String(h || '').trim());
+      excelRows = rows.slice(1).filter(r => r.some(c => c !== undefined && c !== ''));
+
+      showColPicker();
+      showToast('✅ הקובץ נטען בהצלחה — ' + excelRows.length + ' שורות');
+    } catch(err) {
+      showToast('שגיאה בקריאת הקובץ');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showColPicker() {
+  const streetSel = document.getElementById('col-street');
+  const numSel = document.getElementById('col-num');
+  const citySel = document.getElementById('col-city');
+
+  [streetSel, numSel, citySel].forEach(sel => {
+    sel.innerHTML = '<option value="">-- בחר --</option>' +
+      excelHeaders.map((h, i) => `<option value="${i}">${h}</option>`).join('');
+  });
+
+  // Auto-detect columns by common names
+  const streetNames = ['רחוב','כתובת','street','address'];
+  const numNames = ['מספר','בית','number','num','house'];
+  const cityNames = ['עיר','city'];
+  excelHeaders.forEach((h, i) => {
+    const hl = h.toLowerCase();
+    if (streetNames.some(n => hl.includes(n))) streetSel.value = i;
+    if (numNames.some(n => hl.includes(n))) numSel.value = i;
+    if (cityNames.some(n => hl.includes(n))) citySel.value = i;
+  });
+
+  document.getElementById('col-picker').style.display = 'block';
+  rebuildFromExcel();
+}
+
+function rebuildFromExcel() {
+  const si = document.getElementById('col-street').value;
+  const ni = document.getElementById('col-num').value;
+  const ci = document.getElementById('col-city').value;
+
+  if (si === '') { document.getElementById('excel-preview').style.display = 'none'; return; }
+
+  const lines = excelRows.slice(0, 20).map(row => {
+    let addr = si !== '' ? (row[si] || '') : '';
+    if (ni !== '') addr += ' ' + (row[ni] || '');
+    return addr.trim();
+  }).filter(a => a);
+
+  // Set city from first row if city column chosen
+  if (ci !== '' && excelRows[0]) {
+    const cityVal = excelRows[0][ci];
+    if (cityVal && !document.getElementById('city-in').value) {
+      document.getElementById('city-in').value = String(cityVal).trim();
+    }
+  }
+
+  document.getElementById('addr-input').value = lines.join('\n');
+
+  const preview = document.getElementById('excel-preview');
+  preview.style.display = 'block';
+  preview.innerHTML = `
+    <div class="excel-preview-title">✅ ${lines.length} כתובות נטענו</div>
+    <div class="excel-preview-list">${lines.slice(0, 5).map((l, i) => `${i + 1}. ${l}`).join('<br>')}${lines.length > 5 ? `<br><span style="color:var(--text3)">...ועוד ${lines.length - 5} כתובות</span>` : ''}</div>
+  `;
+}
+
+function downloadTemplate() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['רחוב', 'מספר בית', 'עיר'],
+    ['הרצל', '12', 'תל אביב'],
+    ['דיזנגוף', '45', 'תל אביב'],
+    ['אלנבי', '78', 'תל אביב'],
+    ['רוטשילד', '3', 'תל אביב'],
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'כתובות');
+  XLSX.writeFile(wb, 'תבנית-כתובות.xlsx');
+}
+
+let interStopCount = 0;
+
+function addInterStop(addr='', duration=15, type='unload') {
+  const id = ++interStopCount;
+  const row = document.createElement('div');
+  row.className = 'stop-row';
+  row.id = 'istop-' + id;
+  row.innerHTML = `
+    <input type="text" placeholder="רחוב + מספר + עיר" value="${addr}" id="istop-addr-${id}" />
+    <input type="number" min="1" max="240" value="${duration}" id="istop-dur-${id}" placeholder="דקות" />
+    <select id="istop-type-${id}" style="font-size:13px;">
+      <option value="unload" ${type==='unload'?'selected':''}>📦 פריקת חומר</option>
+      <option value="pickup" ${type==='pickup'?'selected':''}>📥 איסוף חומר</option>
+      <option value="fuel" ${type==='fuel'?'selected':''}>⛽ תדלוק</option>
+      <option value="warehouse" ${type==='warehouse'?'selected':''}>🏭 מחסן</option>
+      <option value="break" ${type==='break'?'selected':''}>☕ הפסקה</option>
+      <option value="other" ${type==='other'?'selected':''}>⚙️ אחר</option>
+    </select>
+    <button class="del-btn" onclick="removeInterStop(${id})" title="הסר">✕</button>
+  `;
+  document.getElementById('inter-stops').appendChild(row);
+}
+
+function removeInterStop(id) {
+  const el = document.getElementById('istop-' + id);
+  if (el) el.remove();
+}
+
+function getInterStops() {
+  const rows = document.querySelectorAll('#inter-stops .stop-row');
+  const stops = [];
+  const typeLabels = { unload:'פריקת חומר', pickup:'איסוף חומר', fuel:'תדלוק', warehouse:'מחסן', break:'הפסקה', other:'אחר' };
+  rows.forEach(row => {
+    const idMatch = row.id.match(/istop-(\d+)/);
+    if (!idMatch) return;
+    const i = idMatch[1];
+    const addr = (document.getElementById('istop-addr-' + i)?.value || '').trim();
+    const dur = parseInt(document.getElementById('istop-dur-' + i)?.value || '15');
+    const type = document.getElementById('istop-type-' + i)?.value || 'unload';
+    if (addr) stops.push({ addr, dur, type, label: typeLabels[type] || 'אחר' });
+  });
+  return stops;
+}
+
+
+let lastDriverInfo = {};
+let lastInterStops = [];
+
+async function optimizeRoute() {
+  const city = document.getElementById('city-in').value.trim();
+  const raw = document.getElementById('addr-input').value.trim();
+  if (!raw) { document.getElementById('addr-input').focus(); showToast('יש להזין כתובות'); return; }
+
+  const addrs = raw.split('\n').map(a => a.trim()).filter(Boolean);
+  if (addrs.length < 2) { showToast('יש להזין לפחות 2 כתובות'); return; }
+
+  const driverName    = document.getElementById('driver-name').value.trim();
+  const driverPhone   = document.getElementById('driver-phone').value.trim();
+  const driverVehicle = document.getElementById('driver-vehicle').value.trim();
+  const driverStart   = document.getElementById('driver-start').value.trim();
+  const interStops    = getInterStops();
+
+  lastCity = city;
+  lastAddresses = addrs;
+  lastDriverInfo = { name: driverName, phone: driverPhone, vehicle: driverVehicle, start: driverStart };
+  lastInterStops = interStops;
+
+  document.getElementById('result-section').style.display = 'block';
+  document.getElementById('loading-box').style.display = 'flex';
+  document.getElementById('result-output').style.display = 'none';
+  document.getElementById('result-actions').style.display = 'none';
+  document.getElementById('calc-btn').disabled = true;
+  document.getElementById('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const opts = [];
+  if (document.getElementById('opt-rush').checked)   opts.push('הימנע מעורקי תנועה ראשיים בשעות עומס (7:00-9:00 ו-16:00-19:00)');
+  if (document.getElementById('opt-return').checked)  opts.push('המסלול חייב לחזור לנקודת ההתחלה (מסלול מעגלי)');
+  if (document.getElementById('opt-notes').checked)   opts.push('הוסף הערות ניווט מפורטות לכל תפנית מורכבת');
+  if (document.getElementById('opt-morning').checked) opts.push('שעות נסיעה: בוקר מוקדם (לפני 8:00)');
+
+  const driverSection = (driverName || driverStart) ? [
+    'פרטי הנהג:',
+    driverName    ? '- שם: ' + driverName    : '',
+    driverPhone   ? '- טלפון: ' + driverPhone : '',
+    driverVehicle ? '- רכב: ' + driverVehicle : '',
+    driverStart   ? '- נקודת יציאה: ' + driverStart + (city ? ', ' + city : '') : '',
+  ].filter(Boolean).join('\n') : '';
+
+  const interSection = interStops.length ? [
+    'עצירות ביניים (שלב אותן במיקום ההגיוני ביותר במסלול):',
+    ...interStops.map((s, i) => `${String.fromCharCode(65+i)}. ${s.addr} — ${s.label}, ${s.dur} דקות`)
+  ].join('\n') : '';
+
+  const prompt = `אתה מנהל לוגיסטיקה ומתכנן מסלולים מומחה בישראל.
+${driverSection ? '\n' + driverSection : ''}
+
+יעדי לקוח ${city ? 'באזור ' + city : ''}:
+${addrs.map((a, i) => `${i + 1}. ${a}`).join('\n')}
+${interSection ? '\n' + interSection : ''}
+${opts.length ? '\nהנחיות:\n' + opts.join('\n') : ''}
+
+ענה בדיוק בפורמט הזה:
+
+**המסלול המלא המומלץ:**
+רשימה ממוספרת מהתחלה לסוף. אחרי כל יעד לקוח ציין: (לקוח). אחרי כל עצירת ביניים ציין בסוגריים את סוג הפעולה והזמן המשוער.
+
+**הסבר לוגיסטי:**
+2-3 משפטים קצרים.
+
+**הערות ניווט:**
+נקודות שימו לב — רחובות חד-סטריים, פניות, עורקי תנועה.
+
+ענה בעברית. תמציתי.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1400,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await resp.json();
+    const text = (data.content || []).map(b => b.text || '').join('\n');
+    lastResultText = text;
+
+    document.getElementById('loading-box').style.display = 'none';
+    document.getElementById('result-output').style.display = 'block';
+    document.getElementById('result-output').innerHTML = renderResult(text, addrs, city, lastDriverInfo, interStops);
+    document.getElementById('result-actions').style.display = 'flex';
+
+    totalRoutes++;
+    localStorage.setItem('totalRoutes', totalRoutes);
+    updateCounter();
+    const entry = { city: city || 'לא צוין', count: addrs.length, time: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }), raw };
+    routeHistory.unshift(entry);
+    if (routeHistory.length > 8) routeHistory.pop();
+    localStorage.setItem('routeHistory', JSON.stringify(routeHistory));
+    renderHistory();
+
+  } catch (e) {
+    document.getElementById('loading-box').style.display = 'none';
+    document.getElementById('result-output').style.display = 'block';
+    document.getElementById('result-output').innerHTML = '<p style="color:#b91c1c; font-size:14px;">שגיאה בחישוב המסלול. אנא נסה שוב.</p>';
+  }
+  document.getElementById('calc-btn').disabled = false;
+}
+
+/* ─────────────────────────────────────────────
+   RENDER RESULT
+───────────────────────────────────────────── */
+function renderResult(text, addrs, city, driverInfo, interStopsArr) {
+  let html = `<div style="direction:rtl;">`;
+
+  // Driver summary bar
+  const driver = driverInfo || {};
+  const interStops = interStopsArr || [];
+  if (driver.name || driver.vehicle || driver.start || interStops.length) {
+    html += `<div class="driver-summary">`;
+    if (driver.name)    html += `<span>👤 <strong>${driver.name}</strong></span>`;
+    if (driver.phone)   html += `<span>📱 ${driver.phone}</span>`;
+    if (driver.vehicle) html += `<span>🚚 ${driver.vehicle}</span>`;
+    if (driver.start)   html += `<span>🏠 יוצא מ: ${driver.start}</span>`;
+    if (interStops.length) html += `<span>📦 ${interStops.length} עצירת ביניים</span>`;
+    html += `</div>`;
+  }
+
+  // Meta row
+  html += `<div class="result-header">
+    <div style="font-size:15px; font-weight:600; color:var(--green);">✅ מסלול אופטימלי נמצא</div>
+    <div class="result-meta">
+      ${city ? `<span>📌 ${city}</span>` : ''}
+      <span>🚗 ${addrs.length} לקוחות${interStops.length ? ' + ' + interStops.length + ' ביניים' : ''}</span>
+      <span style="color:var(--text3);">${new Date().toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'})}</span>
+    </div>
+  </div>`;
+
+  const lines = text.split('\n');
+  let stopIdx = 0;
+  let section = '';
+  let inList = false;
+
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) continue;
+
+    if (t.startsWith('**') && t.endsWith('**')) {
+      if (inList) { html += '</ul>'; inList = false; }
+      section = t.replace(/\*\*/g, '');
+      html += `<div class="section-block"><div class="section-block-title">${section}</div>`;
+      if (section.includes('המסלול')) { html += '<ul class="stop-list">'; inList = true; }
+    } else if (/^\d+\./.test(t) && section.includes('המסלול')) {
+      stopIdx++;
+      const addr = t.replace(/^\d+\.\s*/, '');
+      const isInter = addr.includes('פריקה') || addr.includes('איסוף') || addr.includes('תדלוק') || addr.includes('מחסן') || addr.includes('הפסקה');
+      const isClient = addr.includes('לקוח') || !isInter;
+      let badge = '';
+      if (addr.includes('פריקה') || addr.includes('פריקת')) badge = '<span class="unload-badge">📦 פריקה</span>';
+      else if (addr.includes('איסוף')) badge = '<span class="pickup-badge">📥 איסוף</span>';
+      else if (addr.includes('תדלוק')) badge = '<span class="unload-badge">⛽ תדלוק</span>';
+      else if (addr.includes('מחסן')) badge = '<span class="unload-badge">🏭 מחסן</span>';
+      else if (addr.includes('הפסקה')) badge = '<span class="unload-badge">☕ הפסקה</span>';
+      const numStyle = isInter
+        ? 'background:#fef3c7; border-color:#fcd34d; color:#92400e;'
+        : 'background:var(--accent-light); border-color:var(--accent-border); color:var(--accent);';
+      html += `<li class="stop-item">
+        <div class="stop-num" style="${numStyle}">${stopIdx}</div>
+        <div class="stop-addr">${badge}${addr.replace(/\(לקוח\)/,'').replace(/\(פריקה.*?\)/,'').replace(/\(איסוף.*?\)/,'').trim()}</div>
+      </li>`;
+    } else if (t.startsWith('*') || t.startsWith('•') || t.startsWith('-')) {
+      const content = t.replace(/^[\*\•\-]\s*/, '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      html += `<div class="bullet-item"><div class="bullet-dot"></div><div>${content}</div></div>`;
+    } else {
+      const cleaned = t.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      html += `<p style="font-size:14px; color:var(--text2); line-height:1.7; margin:3px 0;">${cleaned}</p>`;
+    }
+  }
+
+  if (inList) html += '</ul>';
+  html += '</div>';
+  return html;
+}
+
+/* ─────────────────────────────────────────────
+   ACTIONS
+───────────────────────────────────────────── */
+function clearAll() {
+  document.getElementById('city-in').value = '';
+  document.getElementById('addr-input').value = '';
+  document.getElementById('driver-name').value = '';
+  document.getElementById('driver-phone').value = '';
+  document.getElementById('driver-vehicle').value = '';
+  document.getElementById('driver-start').value = '';
+  document.getElementById('inter-stops').innerHTML = '';
+  interStopCount = 0;
+  document.getElementById('result-section').style.display = 'none';
+  document.getElementById('excel-preview').style.display = 'none';
+  document.getElementById('col-picker').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  excelRows = []; excelHeaders = [];
+}
+
+function newRoute() {
+  document.getElementById('result-section').style.display = 'none';
+  document.getElementById('addr-input').value = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function copyResult() {
+  if (lastResultText) {
+    navigator.clipboard.writeText(lastResultText).then(() => showToast('✅ הועתק ללוח'));
+  }
+}
+
+function exportTxt() {
+  const blob = new Blob([lastResultText], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'מסלול-' + (lastCity || 'נסיעה') + '.txt';
+  a.click();
+}
+
+function openWaze() {
+  if (!lastAddresses.length) return;
+  const q = encodeURIComponent(lastAddresses[0] + ' ' + lastCity);
+  window.open('https://waze.com/ul?q=' + q, '_blank');
+}
+
+function openGoogleMaps() {
+  if (!lastAddresses.length) return;
+  const waypoints = lastAddresses.map(a => encodeURIComponent(a + ' ' + lastCity)).join('/');
+  window.open('https://www.google.com/maps/dir/' + waypoints, '_blank');
+}
+
+/* ─────────────────────────────────────────────
+   HISTORY
+───────────────────────────────────────────── */
+function renderHistory() {
+  if (!routeHistory.length) return;
+  const card = document.getElementById('history-card');
+  const list = document.getElementById('history-list');
+  card.style.display = 'block';
+  list.innerHTML = routeHistory.map((h, i) =>
+    `<div class="history-item" onclick="reloadHistory(${i})">
+      <div class="history-label">📍 ${h.city} · ${h.count} כתובות</div>
+      <div class="history-meta">${h.time}</div>
+    </div>`
+  ).join('');
+}
+
+function reloadHistory(i) {
+  const h = routeHistory[i];
+  document.getElementById('city-in').value = h.city === 'לא צוין' ? '' : h.city;
+  document.getElementById('addr-input').value = h.raw;
+  document.getElementById('result-section').style.display = 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showToast('מסלול נטען — לחץ "חשב" להרצה מחדש');
+}
+
+function updateCounter() {
+  const el = document.getElementById('route-counter');
+  if (totalRoutes > 0) el.textContent = totalRoutes + ' מסלולים חושבו';
+}
+
+/* ─────────────────────────────────────────────
+   TOAST
+───────────────────────────────────────────── */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+
+</body>
+</html>
