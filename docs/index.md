@@ -1,13 +1,5 @@
 # Route Planner
 
-A route planning application built with HTML, CSS, and JavaScript.
+Welcome to the Route Planner documentation.
 
-## Features
-
-- Interactive route planning
-- Real-time navigation
-- Optimized pathfinding
-
-## Getting Started
-
-Visit the [application](/) to get started.
+This is a route planning application built with HTML and JavaScript.
